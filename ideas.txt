@@ -1,0 +1,14 @@
+void writeOperands(Token tokens[],int *count,int *opCount,Operand ops[]){
+    
+}
+
+void saveOperands(Token tokens[],int *count,int *opCount,Operand ops[]){
+    ops[*opCount].op=tokens[*count].value;
+    (*opCount)++;
+}
+
+typedef struct{
+    char op;
+}Operand;
+
+↑オペランドに優先順位があった時、一度オペランドは全て保存して一番優先順位が高いものが現れた時に放出する
