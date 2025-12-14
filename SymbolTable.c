@@ -26,3 +26,13 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
         index=table->varCount++;    //subroutineScopeに登録
     }
 }
+
+Symbol *search(SymbolTable *table,const char *name){    //nameから対応する構造体を取得する関数
+    if(strcmp(table->subroutineScope,name)){
+        return name;
+    }else if(strcmp(table->classScope,name)){
+        return name;
+    }else{
+        return NULL;
+    }
+}
