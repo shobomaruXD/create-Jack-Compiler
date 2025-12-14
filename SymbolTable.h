@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include "Structs.h"
 
-LocalCounter *startSubroutine();
-void defineArgVars(LocalCounter *LC,char varName[],Vars *varStorage[]);
+SymbolTable *createSymbolTable();
+void startSubroutine(SymbolTable *table);
+
+void define(SymbolTable *table,const char *name,const char *type,const char *kind);
+Symbol *search(SymbolTable *table,const char *name);
 
 #endif
