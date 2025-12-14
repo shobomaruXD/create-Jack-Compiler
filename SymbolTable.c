@@ -14,6 +14,14 @@ void startSubroutine(SymbolTable *table){   // initing subroutine table
     table->varCount=0;
 }
 
+int hash(const char *key){
+    unsigned long hash_value=0;
+    for(int i=0;key[i]!="\n";i++){
+        hash_value=key[i]+(hash_value<<6)+(hash_value<<16)-hash_value;
+    }
+    return hash_value%HASH_SIZE;    //hash配列に収まるように
+}
+
 void define(SymbolTable *table,const char *name,const char *type,const char *kind){
     int index=0;
     if(strcmp(kind,"static")==0){
