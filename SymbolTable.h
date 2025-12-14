@@ -7,4 +7,7 @@
 SymbolTable *createSymbolTable();
 void startSubroutine(SymbolTable *table);
 
+void define(SymbolTable *table,const char *name,const char *type,const char *kind);
+Symbol *search(SymbolTable *table,const char *name);
+
 #endif
