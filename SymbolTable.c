@@ -33,6 +33,16 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
     }else if(strcmp(kind,"var")==0){
         index=table->varCount++;    //subroutineScopeに登録
     }
+
+    Symbol *newSymbol=(SymbolTable *)malloc(sizeof(SymbolTable));   //newSymbolに情報をコピー
+    int indexInArray=hash(name);    //ハッシュ関数で配列のインデックスを決定
+
+    Symbol **target_table=(strcmp(kind,"static")==0||strcmp(kind,"field")==0)
+    ? table->classScope 
+    : table->subroutineScope;   // cant understand
+
+    newSymbol->next=target_table[indexInArray];
+    target_table[indexInArray]=newSymbol;   //chaining
 }
 
 Symbol *search(SymbolTable *table,const char *name){    //nameから対応する構造体を取得する関数
