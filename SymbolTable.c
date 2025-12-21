@@ -3,7 +3,7 @@
 #include "Structs.h"
 
 SymbolTable *createSymbolTable(){
-    SymbolTable *table=(SymbolTable *)malloc(sizeof(SymbolTable));    // initing hashtable
+    SymbolTable *table=(SymbolTable *)calloc(sizeof(SymbolTable));    // initing hashtable
     table->staticCount=0;
     table->fieldCount=0;
     return table;
@@ -16,7 +16,7 @@ void startSubroutine(SymbolTable *table){   // initing subroutine table
 
 int hash(const char *key){  //文字列をユニークな数字に変換する関数
     unsigned long hashValue=0;
-    for(int i=0;key[i]!="\n";i++){
+    for(int i=0;key[i]!='\0';i++){
         hashValue=key[i]+(hashValue<<6)+(hashValue<<16)-hashValue;
     }
     return hashValue%HASH_SIZE;    //hashValue%HASH_SIZE=UniqueName,HASH_SIZEに収まるように
@@ -34,26 +34,39 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
         index=table->varCount++;    //subroutineScopeに登録
     }
 
-    Symbol *newSymbol=(SymbolTable *)malloc(sizeof(SymbolTable));   //newSymbolに情報をコピー
+    Symbol *newSymbol=(Symbol *)malloc(sizeof(Symbol));   //newSymbolに情報をコピー
+    strcpy(newSymbol->name,name);
+    strcpy(newSymbol->type,type);
+    strcpy(newSymbol->kind,kind);
+    newSymbol->index=index;
     int indexInTable=hash(name);    //ハッシュ関数で配列のインデックスを決定
-    Symbol **target_table;
+    Symbol **targetScope;
 
     if(strcmp(kind,"static")==0||strcmp(kind,"field")==0){
-        target_table=table->classScope;
+        targetScope=table->classScope;
     }else{
-        target_table=table->subroutineScope;
+        targetScope=table->subroutineScope;
     }
 
-    newSymbol->next=target_table[indexInTable];
-    target_table[indexInTable]=newSymbol;   //chaining
+    newSymbol->next=targetScope[indexInTable]; // 今の先頭を「次」にする
+    targetScope[indexInTable]=newSymbol;       // 新しいノードを「先頭」にする
 }
 
 Symbol *search(SymbolTable *table,const char *name){    //nameから対応する構造体を取得する関数
-    if(strcmp(table->subroutineScope,name)){
-        return name;
-    }else if(strcmp(table->classScope,name)){
-        return name;
-    }else{
-        return NULL;
+    int indexInTable=hash(name);
+    while(table->subroutineScope[indexInTable]!=NULL){
+        Symbol *tempSymbol=table->subroutineScope[indexInTable];
+        if(strcmp(tempSymbol->name,name)==0){
+            return tempSymbol;
+        }
+        tempSymbol=tempSymbol->next;
     }
+    while(table->classScope[indexInTable]!=NULL){
+        Symbol *tempSymbol=table->classScope[indexInTable];
+        if(strcmp(tempSymbol->next,name)){
+            return tempSymbol;
+        }
+        tempSymbol=tempSymbol->next;
+    }
+    return NULL;
 }
