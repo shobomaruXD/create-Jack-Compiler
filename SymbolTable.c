@@ -14,12 +14,12 @@ void startSubroutine(SymbolTable *table){   // initing subroutine table
     table->varCount=0;
 }
 
-int hash(const char *key){  //文字列をHASH_SIZEに収まるようにする関数
-    unsigned long hash_value=0;
+int hash(const char *key){  //文字列をユニークな数字に変換する関数
+    unsigned long hashValue=0;
     for(int i=0;key[i]!="\n";i++){
-        hash_value=key[i]+(hash_value<<6)+(hash_value<<16)-hash_value;
+        hashValue=key[i]+(hashValue<<6)+(hashValue<<16)-hashValue;
     }
-    return hash_value%HASH_SIZE;    //hash配列に収まるように
+    return hashValue%HASH_SIZE;    //hashValue%HASH_SIZE=UniqueName,HASH_SIZEに収まるように
 }
 
 void define(SymbolTable *table,const char *name,const char *type,const char *kind){
@@ -35,14 +35,17 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
     }
 
     Symbol *newSymbol=(SymbolTable *)malloc(sizeof(SymbolTable));   //newSymbolに情報をコピー
-    int indexInArray=hash(name);    //ハッシュ関数で配列のインデックスを決定
+    int indexInTable=hash(name);    //ハッシュ関数で配列のインデックスを決定
+    Symbol **target_table;
 
-    Symbol **target_table=(strcmp(kind,"static")==0||strcmp(kind,"field")==0)
-    ? table->classScope 
-    : table->subroutineScope;   // cant understand
+    if(strcmp(kind,"static")==0||strcmp(kind,"field")==0){
+        target_table=table->classScope;
+    }else{
+        target_table=table->subroutineScope;
+    }
 
-    newSymbol->next=target_table[indexInArray];
-    target_table[indexInArray]=newSymbol;   //chaining
+    newSymbol->next=target_table[indexInTable];
+    target_table[indexInTable]=newSymbol;   //chaining
 }
 
 Symbol *search(SymbolTable *table,const char *name){    //nameから対応する構造体を取得する関数
