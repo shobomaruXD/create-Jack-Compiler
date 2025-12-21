@@ -18,7 +18,7 @@ typedef struct Symbol{  //一つの変数の情報を保持するnode
     char name[N];
     char type[N];
     char kind[N];     // 種類(static,field,argument,var)
-    int index;      //VMセグメントでのインデックス(start from 0)
+    int index;      //VMセグメントでのインデックス(start from 0),何番目か
     struct Symbol *next; // ハッシュ衝突解決のためのリンク(ポインタ)
 }Symbol;
 
