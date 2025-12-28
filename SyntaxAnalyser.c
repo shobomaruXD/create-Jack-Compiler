@@ -507,8 +507,8 @@ void compileSubroutineBody(VMWriter *writer,Token tokens[],int *count){
 }
 
 void compileSubroutine(VMWriter *writer,Token tokens[],int *count,char *className){
-    LocalCounter *LC=startSubroutine();
-    Vars *varStorage[MAX_STORAGE];
+    // LocalCounter *LC=startSubroutine();
+    // Vars *varStorage[MAX_STORAGE];
 
     if(strcmp(tokens[*count].value,"function")==0 || strcmp(tokens[*count].value,"method")==0 || strcmp(tokens[*count].value,"constructor")==0){
         (*count)++;
@@ -525,7 +525,7 @@ void compileSubroutine(VMWriter *writer,Token tokens[],int *count,char *classNam
         if(strcmp(tokens[*count].type,"identifier")==0){
             char varName[128];
             strcpy(varName,tokens[*count].value);
-            defineArgsVars(LC,varName,varStorage);
+            // defineArgsVars(LC,varName,varStorage);
         }
         (*count)++;
     }

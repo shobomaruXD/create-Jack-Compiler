@@ -19,7 +19,7 @@ void freeSymbolTable(SymbolTable *table){
             free(tempSymbol);
             tempSymbol=Next;
         }
-        Symbol *tempSymbol=table->subroutineScope[i];
+        tempSymbol=table->subroutineScope[i];
         while(tempSymbol!=NULL){
             Symbol *Next=tempSymbol->next;
             free(tempSymbol);
