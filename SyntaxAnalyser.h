@@ -7,8 +7,9 @@
 
 void compileTerm(VMWriter *writer,Token tokens[],int *count);
 void compileExpression(VMWriter *writer,Token tokens[],int *count);
-void compileClass(VMWriter *writer,Token tokens[],int *count);
+int compileClass(VMWriter *writer,Token tokens[],int *count);
 int compileClassVarDec(SymbolTable *table,Token tokens[],int *count);
+int compileSubroutineDec(SymbolTable *table,Token tokens[],int *count);
 void compileSubroutine(VMWriter *writer,Token tokens[],int *count,char *className);
 void compileSubroutineBody(VMWriter *writer,Token tokens[],int *count);
 void compileStatements(VMWriter *writer,Token tokens[],int *count);
