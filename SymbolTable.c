@@ -1,25 +1,48 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "SymbolTable.h"
 #include "Structs.h"
 
 SymbolTable *createSymbolTable(){
-    SymbolTable *table=(SymbolTable *)malloc(sizeof(SymbolTable));    // initing hashtable
+    SymbolTable *table=(SymbolTable *)calloc(1,sizeof(SymbolTable));    // initing hashtable
     table->staticCount=0;
     table->fieldCount=0;
     return table;
 }
 
+void freeSymbolTable(SymbolTable *table){
+    for(int i=0;i<HASH_SIZE;i++){
+        Symbol *tempSymbol=table->classScope[i];
+        while(tempSymbol!=NULL){
+            Symbol *Next=tempSymbol->next;
+            free(tempSymbol);
+            tempSymbol=Next;
+        }
+        tempSymbol=table->subroutineScope[i];
+        while(tempSymbol!=NULL){
+            Symbol *Next=tempSymbol->next;
+            free(tempSymbol);
+            tempSymbol=Next;
+        }
+    }
+    free(table);
+}
+
 void startSubroutine(SymbolTable *table){   // initing subroutine table
     table->argCount=0;
     table->varCount=0;
+    for(int i=0;i<HASH_SIZE;i++){
+        table->subroutineScope[i]=NULL;
+    }
 }
 
-int hash(const char *key){  //文字列をHASH_SIZEに収まるようにする関数
-    unsigned long hash_value=0;
-    for(int i=0;key[i]!="\n";i++){
-        hash_value=key[i]+(hash_value<<6)+(hash_value<<16)-hash_value;
+int hash(const char *key){  //文字列をユニークな数字に変換する関数
+    unsigned long hashValue=0;
+    for(int i=0;key[i]!='\0';i++){
+        hashValue=key[i]+(hashValue<<6)+(hashValue<<16)-hashValue;
     }
-    return hash_value%HASH_SIZE;    //hash配列に収まるように
+    return hashValue%HASH_SIZE;    //hashValue%HASH_SIZE=UniqueName,HASH_SIZEに収まるように
 }
 
 void define(SymbolTable *table,const char *name,const char *type,const char *kind){
@@ -34,23 +57,39 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
         index=table->varCount++;    //subroutineScopeに登録
     }
 
-    Symbol *newSymbol=(SymbolTable *)malloc(sizeof(SymbolTable));   //newSymbolに情報をコピー
-    int indexInArray=hash(name);    //ハッシュ関数で配列のインデックスを決定
+    Symbol *newSymbol=(Symbol *)malloc(sizeof(Symbol));   //newSymbolに情報をコピー
+    strcpy(newSymbol->name,name);
+    strcpy(newSymbol->type,type);
+    strcpy(newSymbol->kind,kind);
+    newSymbol->index=index;
+    int indexInTable=hash(name);    //ハッシュ関数で配列のインデックスを決定
+    Symbol **targetScope;
 
-    Symbol **target_table=(strcmp(kind,"static")==0||strcmp(kind,"field")==0)
-    ? table->classScope 
-    : table->subroutineScope;   // cant understand
+    if(strcmp(kind,"static")==0||strcmp(kind,"field")==0){
+        targetScope=table->classScope;
+    }else{
+        targetScope=table->subroutineScope;
+    }
 
-    newSymbol->next=target_table[indexInArray];
-    target_table[indexInArray]=newSymbol;   //chaining
+    newSymbol->next=targetScope[indexInTable]; // 今の先頭をnextにする
+    targetScope[indexInTable]=newSymbol;       // 新しいノードを先頭にする:next=newSymbol
 }
 
 Symbol *search(SymbolTable *table,const char *name){    //nameから対応する構造体を取得する関数
-    if(strcmp(table->subroutineScope,name)){
-        return name;
-    }else if(strcmp(table->classScope,name)){
-        return name;
-    }else{
-        return NULL;
+    int indexInTable=hash(name);
+    Symbol *tempSymbol=table->subroutineScope[indexInTable];
+    while(tempSymbol!=NULL){
+        if(strcmp(tempSymbol->name,name)==0){
+            return tempSymbol;
+        }
+        tempSymbol=tempSymbol->next;
     }
+    tempSymbol=table->classScope[indexInTable];
+    while(tempSymbol!=NULL){
+        if(strcmp(tempSymbol->name,name)==0){
+            return tempSymbol;
+        }
+        tempSymbol=tempSymbol->next;
+    }
+    return NULL;
 }
