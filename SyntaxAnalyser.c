@@ -533,7 +533,32 @@ void compileSubroutine(VMWriter *writer,Token tokens[],int *count,char *classNam
     compileSubroutineBody(writer,tokens,count);
 }
 
+int compileClassVarDec(SymbolTable *table,Token tokens[],int *count){
+    char *name,*type,*kind;
+    strcpy(kind,tokens[*count].value);
+    (*count)++;
+    strcpy(type,tokens[*count].value);
+    (*count)++;
+    strcpy(name,tokens[*count].value);
+    (*count)++;
+    define(table,name,type,kind);
+    while(strcmp(tokens[*count].value,",")==0){
+        (*count)++;
+        strcpy(name,tokens[*count].value);
+        (*count)++;
+        define(table,name,type,kind);
+    }
+    if(strcmp(tokens[*count].value,";")==0){
+        (*count)++;
+    }else{
+        fprintf(stderr,"';'expected\n");
+        return 1;
+    }
+    return 0;
+}
+
 void compileClass(VMWriter *writer,Token tokens[],int *count){
+    SymbolTable *table=createSymbolTable();
     if(strcmp(tokens[*count].value,"class")==0){
         (*count)++;
     }
@@ -545,6 +570,10 @@ void compileClass(VMWriter *writer,Token tokens[],int *count){
         (*count)++;
     }
     (*count)++;
+
+    while(strcmp(tokens[*count].value,"static")==0||strcmp(tokens[*count].value,"field")==0){
+        compileClassVarDec(table,tokens,count);
+    }
 
     while(strcmp(tokens[*count].value,"}")!=0){
         if(strcmp(tokens[*count].value,"function")==0||strcmp(tokens[*count].value,"constructor")==0||strcmp(tokens[*count].value,"method")==0){
