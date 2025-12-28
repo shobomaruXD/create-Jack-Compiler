@@ -1,9 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "SymbolTable.h"
 #include "Structs.h"
 
 SymbolTable *createSymbolTable(){
-    SymbolTable *table=(SymbolTable *)calloc(sizeof(SymbolTable));    // initing hashtable
+    SymbolTable *table=(SymbolTable *)calloc(1,sizeof(SymbolTable));    // initing hashtable
     table->staticCount=0;
     table->fieldCount=0;
     return table;
@@ -34,7 +36,7 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
         index=table->varCount++;    //subroutineScopeに登録
     }
 
-    Symbol *newSymbol=(Symbol *)calloc(sizeof(Symbol));   //newSymbolに情報をコピー
+    Symbol *newSymbol=(Symbol *)malloc(sizeof(Symbol));   //newSymbolに情報をコピー
     strcpy(newSymbol->name,name);
     strcpy(newSymbol->type,type);
     strcpy(newSymbol->kind,kind);
@@ -63,7 +65,7 @@ Symbol *search(SymbolTable *table,const char *name){    //nameから対応する
     }
     while(table->classScope[indexInTable]!=NULL){
         Symbol *tempSymbol=table->classScope[indexInTable];
-        if(strcmp(tempSymbol->next,name)){
+        if(strcmp(tempSymbol->name,name)){
             return tempSymbol;
         }
         tempSymbol=tempSymbol->next;
