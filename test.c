@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "SymbolTable.h"
 
 #define N 128
 
@@ -28,4 +29,34 @@ int main() {
     
 
     return 0;
+}
+
+void printSymbolTable(SymbolTable *table) {
+    printf("\n--- SYMBOL TABLE DEBUG START ---\n");
+
+    // 1. クラススコープ（static/field）の表示
+    printf("[Class Scope]\n");
+    for (int i = 0; i < HASH_SIZE; i++) {
+        Symbol *current = table->classScope[i];
+        while (current != NULL) {
+            printf("  Index %3d: [Name] %-10s [Type] %-8s [Kind] %-8s [VM Index] %d\n",
+                   i, current->name, current->type, current->kind, current->index);
+            current = current->next;
+        }
+    }
+
+    printf("--------------------------------\n");
+
+    // 2. サブルーチンスコープ（argument/var）の表示
+    printf("[Subroutine Scope]\n");
+    for (int i = 0; i < HASH_SIZE; i++) {
+        Symbol *current = table->subroutineScope[i];
+        while (current != NULL) {
+            printf("  Index %3d: [Name] %-10s [Type] %-8s [Kind] %-8s [VM Index] %d\n",
+                   i, current->name, current->type, current->kind, current->index);
+            current = current->next;
+        }
+    }
+
+    printf("--- SYMBOL TABLE DEBUG END ---\n\n");
 }

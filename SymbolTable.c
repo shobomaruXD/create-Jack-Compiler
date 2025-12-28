@@ -34,7 +34,7 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
         index=table->varCount++;    //subroutineScopeに登録
     }
 
-    Symbol *newSymbol=(Symbol *)malloc(sizeof(Symbol));   //newSymbolに情報をコピー
+    Symbol *newSymbol=(Symbol *)calloc(sizeof(Symbol));   //newSymbolに情報をコピー
     strcpy(newSymbol->name,name);
     strcpy(newSymbol->type,type);
     strcpy(newSymbol->kind,kind);
@@ -48,8 +48,8 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
         targetScope=table->subroutineScope;
     }
 
-    newSymbol->next=targetScope[indexInTable]; // 今の先頭を「次」にする
-    targetScope[indexInTable]=newSymbol;       // 新しいノードを「先頭」にする
+    newSymbol->next=targetScope[indexInTable]; // 今の先頭をnextにする
+    targetScope[indexInTable]=newSymbol;       // 新しいノードを先頭にする:next=newSymbol
 }
 
 Symbol *search(SymbolTable *table,const char *name){    //nameから対応する構造体を取得する関数
