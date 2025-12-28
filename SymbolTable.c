@@ -11,9 +11,30 @@ SymbolTable *createSymbolTable(){
     return table;
 }
 
+void freeSymbolTable(SymbolTable *table){
+    for(int i=0;i<HASH_SIZE;i++){
+        Symbol *tempSymbol=table->classScope[i];
+        while(tempSymbol!=NULL){
+            Symbol *Next=tempSymbol->next;
+            free(tempSymbol);
+            tempSymbol=Next;
+        }
+        Symbol *tempSymbol=table->subroutineScope[i];
+        while(tempSymbol!=NULL){
+            Symbol *Next=tempSymbol->next;
+            free(tempSymbol);
+            tempSymbol=Next;
+        }
+    }
+    free(table);
+}
+
 void startSubroutine(SymbolTable *table){   // initing subroutine table
     table->argCount=0;
     table->varCount=0;
+    for(int i=0;i<HASH_SIZE;i++){
+        table->subroutineScope[i]=NULL;
+    }
 }
 
 int hash(const char *key){  //文字列をユニークな数字に変換する関数
@@ -65,7 +86,7 @@ Symbol *search(SymbolTable *table,const char *name){    //nameから対応する
     }
     tempSymbol=table->classScope[indexInTable];
     while(tempSymbol!=NULL){
-        if(strcmp(tempSymbol->name,name)){
+        if(strcmp(tempSymbol->name,name)==0){
             return tempSymbol;
         }
         tempSymbol=tempSymbol->next;

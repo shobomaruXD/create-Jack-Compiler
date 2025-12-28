@@ -67,7 +67,7 @@ int main(){
     define(table, "localVar", "boolean", "var");
 
     printSymbolTable(table);
-    define(table, "localVar", "boolean", "var");
+    define(table, "hwei", "boolean", "var");
     printSymbolTable(table); // ここでは表示される
     // 2. 検索する
     search(table, "localVar");
