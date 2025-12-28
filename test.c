@@ -67,6 +67,12 @@ int main(){
     define(table, "localVar", "boolean", "var");
 
     printSymbolTable(table);
+    define(table, "localVar", "boolean", "var");
+    printSymbolTable(table); // ここでは表示される
+    // 2. 検索する
+    search(table, "localVar");
+    // 3. もう一度表示
+    printSymbolTable(table);
 
     return 0;
 }

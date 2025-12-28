@@ -56,15 +56,15 @@ void define(SymbolTable *table,const char *name,const char *type,const char *kin
 
 Symbol *search(SymbolTable *table,const char *name){    //nameから対応する構造体を取得する関数
     int indexInTable=hash(name);
-    while(table->subroutineScope[indexInTable]!=NULL){
-        Symbol *tempSymbol=table->subroutineScope[indexInTable];
+    Symbol *tempSymbol=table->subroutineScope[indexInTable];
+    while(tempSymbol!=NULL){
         if(strcmp(tempSymbol->name,name)==0){
             return tempSymbol;
         }
         tempSymbol=tempSymbol->next;
     }
-    while(table->classScope[indexInTable]!=NULL){
-        Symbol *tempSymbol=table->classScope[indexInTable];
+    tempSymbol=table->classScope[indexInTable];
+    while(tempSymbol!=NULL){
         if(strcmp(tempSymbol->name,name)){
             return tempSymbol;
         }
