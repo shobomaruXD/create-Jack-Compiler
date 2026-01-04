@@ -11,7 +11,13 @@
 static int labelCount=0;
 char *stop=")];=<>";
 
-
+const char* mapKindToSegment(const char* kind){
+    if(strcmp(kind,"var")==0) return "local";
+    if(strcmp(kind,"argument")==0) return "argument";
+    if(strcmp(kind,"static")==0) return "static";
+    if(strcmp(kind,"field")==0) return "this";
+    return "unknown";
+}
 
 static char *newLabel(const char *base){
     char *label=malloc(64);
@@ -231,35 +237,29 @@ void compileExpression(VMWriter *writer,Token tokens[],int *count){
 //     fprintf(output,"</letStatement>\r\n");
 // }
 
-void compileLet(VMWriter *writer,Token tokens[],int *count){
-    if(strcmp(tokens[*count].value,"let")==0){
-        (*count)++; // skip 'let'
-    }
+void compileLet(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    (*count)++; // skip 'let'
 
-    char varName[64];
-    strcpy(varName,tokens[*count].value);
+    char *varName=tokens[*count].value;
     (*count)++;
 
-    while((strcmp(tokens[*count].value,"[")==0) && (strcmp(tokens[*count].value,"=")!=0)){
+    Symbol *s=search(table,varName);
+    if (s==NULL){
+        fprintf(stderr,"Error: Variable '%s' is not defined\n",varName);
+        return;
+    }
+    while(strcmp(tokens[*count].value,"[")==0){
         (*count)++; //skip "["
         compileExpression(writer,tokens,count);
         (*count)++; //skip "]"
     }
 
-    if(strcmp(tokens[*count].value,"=")==0){
-        (*count)++;
-    }
+    (*count)++; //skip "="
     compileExpression(writer,tokens,count);
 
-    int value=atoi(tokens[*count].value); // int型only
-    writePush(writer,"constant",value);
-    (*count)++;
-
-    writePop(writer,"local",0); // 仮にxはlocal 0
-
-    if(strcmp(tokens[*count].value,";")==0){
-        (*count)++;
-    }
+    char *segment=mapKindToSegment(s->kind);
+    writePop(writer,segment,s->index);
+    (*count)++; //skip ";"
 }
 
 // void compileDo(VMWriter *writer,Token tokens[],int *count){
@@ -467,20 +467,21 @@ void compileIf(VMWriter *writer,Token tokens[],int *count){
     free(endLabel);
 }
 
-void compileStatements(VMWriter *writer,Token tokens[],int *count){
+int compileStatements(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     while(count){
         if(strcmp(tokens[*count].value,"let")==0){
-            compileLet(writer,tokens,count);
+            compileLet(writer,table,tokens,count);
+        }else if(strcmp(tokens[*count].value,"if")==0){
+            compileIf(writer,tokens,count);
+        }else if(strcmp(tokens[*count].value,"while")==0){
+            compileWhile(writer,tokens,count);
         }else if(strcmp(tokens[*count].value,"do")==0){
             compileDo(writer,tokens,count);
         }else if(strcmp(tokens[*count].value,"return")==0){
             compileReturn(writer,tokens,count);
-        }else if(strcmp(tokens[*count].value,"while")==0){
-            compileWhile(writer,tokens,count);
-        }else if(strcmp(tokens[*count].value,"if")==0){
-            compileIf(writer,tokens,count);
         }else{
-            break;
+            fprintf(stderr,"Error: 'let'|'if'|'while'|'do'|'return' expected\n");
+            return 1;
         }
     }
 }
@@ -511,7 +512,7 @@ void compileSubroutineBody(VMWriter *writer,SymbolTable *table,Token tokens[],in
         compileVarDec(table,tokens,count);
     }
 
-    compileStatements(writer,tokens,count);
+    compileStatements(writer,table,tokens,count);
 
     (*count)++; // skip '}'
 }

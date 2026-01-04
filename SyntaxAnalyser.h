@@ -5,6 +5,8 @@
 #include "Structs.h"  // Token構造体を別ヘッダに分けると便利
 #include "CodeGenerator.h"
 
+const char* mapKindToSegment(const char* kind);
+
 void compileTerm(VMWriter *writer,Token tokens[],int *count);
 void compileExpression(VMWriter *writer,Token tokens[],int *count);
 int compileClass(VMWriter *writer,Token tokens[],int *count);
@@ -13,8 +15,8 @@ int compileSubroutineDec(VMWriter *writer,SymbolTable *table,Token tokens[],int 
 // void compileSubroutine(VMWriter *writer,Token tokens[],int *count,char *className);
 void compileSubroutineBody(VMWriter *writer,SymbolTable *table,Token tokens[],int *count);
 void compileVarDec(SymbolTable *table,Token tokens[],int *count);
-void compileStatements(VMWriter *writer,Token tokens[],int *count);
-void compileLet(VMWriter *writer,Token tokens[],int *count);
+int compileStatements(VMWriter *writer,SymbolTable *table,Token tokens[],int *count);
+void compileLet(VMWriter *writer,SymbolTable *table,Token tokens[],int *count);
 void compileDo(VMWriter *writer,Token tokens[],int *count);
 void compileReturn(VMWriter *writer,Token tokens[],int *count);
 void compileWhile(VMWriter *writer,Token tokens[],int *count);
