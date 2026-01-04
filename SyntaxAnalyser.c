@@ -485,53 +485,36 @@ void compileStatements(VMWriter *writer,Token tokens[],int *count){
     }
 }
 
-void compileSubroutineBody(VMWriter *writer,Token tokens[],int *count){
-    while (strcmp(tokens[*count].value,"{")!=0){
+void compileVarDec(SymbolTable *table,Token tokens[],int *count){
+    char name[N],type[N];
+    strcpy(type,tokens[*count].value);
+    (*count)++;
+    while(1){
+        strcpy(name,tokens[*count].value);
         (*count)++;
+        define(table,name,type,"var");  //kind="argument"で固定
+
+        if(strcmp(tokens[*count].value,",")==0){
+            (*count)++;
+        }else{
+            (*count)--;
+            break;
+        }
     }
+}
+
+void compileSubroutineBody(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     (*count)++; // skip '{'
 
     while(strcmp(tokens[*count].value,"var")==0){
-        while(strcmp(tokens[*count].value,";")!=0){
-            (*count)++;
-        }
-        (*count)++; // skip ';'
+        (*count)++;
+        compileVarDec(table,tokens,count);
     }
 
     compileStatements(writer,tokens,count);
 
-    while(strcmp(tokens[*count].value,"}")!=0 && tokens[*count].value[0]!='\0'){
-        (*count)++;
-    }
     (*count)++; // skip '}'
 }
-
-// void compileSubroutine(VMWriter *writer,Token tokens[],int *count,char *className){
-//     // LocalCounter *LC=startSubroutine();
-//     // Vars *varStorage[MAX_STORAGE];
-
-//     if(strcmp(tokens[*count].value,"function")==0 || strcmp(tokens[*count].value,"method")==0 || strcmp(tokens[*count].value,"constructor")==0){
-//         (*count)++;
-//     }
-//     (*count)++;
-
-//     char funcName[128];
-//     strcpy(funcName,className); //make it easy
-//     strcat(funcName,".");
-//     strcat(funcName,tokens[*count].value);
-//     (*count)++;
-
-//     while((strcmp(tokens[*count].value,"{")!=0)&&(tokens[*count].value[0]!='\0')){
-//         if(strcmp(tokens[*count].type,"identifier")==0){
-//             char varName[128];
-//             strcpy(varName,tokens[*count].value);
-//             // defineArgsVars(LC,varName,varStorage);
-//         }
-//         (*count)++;
-//     }
-//     writeFunction(writer,funcName,0); // CodeGeneratorへ
-//     compileSubroutineBody(writer,tokens,count);
-// }
 
 int compileParameterList(SymbolTable *table,Token tokens[],int *count){
     if(strcmp(tokens[*count].value,")")==0){
@@ -578,7 +561,7 @@ int compileSubroutineDec(VMWriter *writer,SymbolTable *table,Token tokens[],int 
     }
     if(strcmp(tokens[*count].value,")")==0){
         (*count)++;
-        compileSubroutineBody(writer,tokens,count);
+        compileSubroutineBody(writer,table,tokens,count);
     }else{
         fprintf(stderr,"')'expected\n");
         return 1;
