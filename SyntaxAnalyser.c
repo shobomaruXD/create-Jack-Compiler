@@ -10,6 +10,7 @@
 
 static int labelCount=0;
 char *stop=")];=<>";
+char *className;
 
 const char* mapKindToSegment(const char* kind){
     if(strcmp(kind,"var")==0) return "local";
@@ -218,27 +219,76 @@ void compileExpression(VMWriter *writer,Token tokens[],int *count){
     compileAddSub(writer,tokens,count);
 }
 
-// void compileLet(FILE *output,Token tokens[],int *count,int *indents){
-//     MakeIndents(output,indents);
-//     fprintf(output,"<letStatement>\r\n");
-//     (*indents)++;
-//     writeToken(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     while((strcmp(tokens[*count].value,"[")==0) && (strcmp(tokens[*count].value,"=")!=0)){
-//         writeToken(output,tokens,count,indents);
-//         compileExpression(output,tokens,count,indents);
-//         writeToken(output,tokens,count,indents);
-//     }
-//     writeToken(output,tokens,count,indents);
-//     compileExpression(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents); // ;
-//     (*indents)--;
-//     MakeIndents(output,indents);
-//     fprintf(output,"</letStatement>\r\n");
-// }
+int compileExpressionList(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    int nArgs=0;
+
+    while(1){
+        compileExpression(writer,tokens,count);
+        nArgs++;
+
+        if(strcmp(tokens[*count].value,",")==0){
+            (*count)++;
+        }else{
+            break;
+        }
+    }
+
+    return nArgs;
+}
+
+void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    char *val=tokens[*count].value;
+    if(strcmp(val,className)==0){
+        (*count)++;
+        (*count)++; //skip  "."
+        char *subroutineName=tokens[*count].value;
+        (*count)++;
+        (*count)++; //skip "("
+        compileExpressionList(writer,table,tokens,count);
+        (*count)++; //skip ")"
+
+        char *functionName=strcat(val,".");
+        functionName=strcat(functionName,subroutineName);
+        writeCall(writer,functionName,1);
+    }else if(strcmp(tokens[(*count)++].value,".")==0){
+        Symbol *s=search(table,val);
+        if (s==NULL){
+            fprintf(stderr,"Error: Variable '%s' is not defined\n",val);
+            return;
+        }
+        char *segment=mapKindToSegment(s->kind);
+        writePush(writer,segment,s->index);
+        (*count)++;
+
+        (*count)++; //skip  "."
+        char *subroutineName=tokens[*count].value;
+        (*count)++;
+        (*count)++; //skip "("
+        int nArgs=compileExpressionList(writer,table,tokens,count);
+        (*count)++; //skip ")"
+
+        char *functionName=strcat(val,".");
+        functionName=strcat(functionName,subroutineName);
+        writeCall(writer,functionName,nArgs+1);
+    }else if(strcmp(tokens[(*count)++].value,"(")==0){
+        writePush(writer,"pointer",0);
+        (*count)++;
+
+        (*count)++; //skip "("
+        int nArgs=compileExpressionList(writer,table,tokens,count);
+        (*count)++; //skip ")"
+
+        char *functionName=strcat(className,".");
+        functionName=strcat(functionName,val);
+        writeCall(writer,functionName,nArgs+1);
+    }else{
+        fprintf(stderr,"Error: there are no subroutine calls");
+        return;
+    }
+}
 
 void compileLet(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
-    (*count)++; // skip 'let'
+    (*count)++; // skip "let"
 
     char *varName=tokens[*count].value;
     (*count)++;
@@ -262,167 +312,9 @@ void compileLet(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     (*count)++; //skip ";"
 }
 
-// void compileDo(VMWriter *writer,Token tokens[],int *count){
-//     MakeIndents(output,indents);
-//     fprintf(output,"<doStatement>\r\n");
-//     (*indents)++;
-//     writeToken(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     if(strcmp(tokens[*count].value,"(")==0){ // subroutineCall
-//         writeToken(output,tokens,count,indents);
-//         compileExpressionList(output,tokens,count,indents);
-//         writeToken(output,tokens,count,indents);
-//     }else if(strcmp(tokens[*count].value,".")==0){ // subroutineCall
-//         for(int i=0;i<3;i++){
-//             writeToken(output,tokens,count,indents);
-//         }
-//         compileExpressionList(output,tokens,count,indents);
-//         writeToken(output,tokens,count,indents); // <symbol> ) </symbol>
-//     }
-//     writeToken(output,tokens,count,indents);
-//     (*indents)--;
-//     MakeIndents(output,indents);
-//     fprintf(output,"</doStatement>\r\n");
-// }
+void compileIf(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    (*count)++; //skip "if"
 
-void compileDo(VMWriter *writer,Token tokens[],int *count){
-    if(strcmp(tokens[*count].value,"do")==0){
-        (*count)++;
-    }
-
-    char subroutineName[64];
-    strcpy(subroutineName,tokens[*count].value);
-    (*count)++; // skip subroutineName
-
-    if(strcmp(tokens[*count].value,".")==0){
-        strcat(subroutineName,".");
-        (*count)++;
-        strcat(subroutineName,tokens[*count].value);
-        (*count)++;
-    }
-    (*count)++; // skip "("
-
-    int nArgs=0; // how many expressions
-    if(strcmp(tokens[*count].value,")")!=0){ // ExpressionList
-        printf("yes\n");
-        compileExpression(writer,tokens,count);
-        nArgs++;
-        while(strcmp(tokens[*count].value,",")==0){
-            (*count)++; // skip ","
-            compileExpression(writer,tokens,count);
-            nArgs++;
-        }
-    }
-    if(strcmp(tokens[*count].value,")")==0){
-        (*count)++;
-    }
-    writeCall(writer,subroutineName,nArgs);
-    (*count)++; //skip ";"
-}
-
-// void compileReturn(VMWriter *writer,Token tokens[],int *count){
-//     MakeIndents(output,indents);
-//     fprintf(output,"<returnStatement>\r\n");
-//     (*indents)++;
-//     writeToken(output,tokens,count,indents);
-//     if(strcmp(tokens[*count].value,";")!=0){
-//         compileExpression(output,tokens,count,indents);
-//     }
-//     writeToken(output,tokens,count,indents);
-//     (*indents)--;
-//     MakeIndents(output,indents);
-//     fprintf(output,"</returnStatement>\r\n");
-// }
-
-void compileReturn(VMWriter *writer,Token tokens[],int *count){
-    if(strcmp(tokens[*count].value,"return")==0){
-        (*count)++;
-    }
-
-    if(strcmp(tokens[*count].value,";")!=0){
-        int value=atoi(tokens[*count].value); // return 1; のような定数を返す
-        compileExpression(writer,tokens,count);
-    }else{
-        writePush(writer,"constant",0); // void return
-    }
-    writeReturn(writer);
-    if(strcmp(tokens[*count].value,";")==0){ //skip ";"
-        (*count)++;
-    }
-}
-
-// void compileWhile(VMWriter *writer,Token tokens[],int *count){
-//     MakeIndents(output,indents);
-//     fprintf(output,"<whileStatement>\r\n");
-//     (*indents)++;
-//     writeToken(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     compileExpression(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     compileStatements(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     (*indents)--;
-//     MakeIndents(output,indents);
-//     fprintf(output,"</whileStatement>\r\n");
-// }
-
-void compileWhile(VMWriter *writer,Token tokens[],int *count){
-    if(strcmp(tokens[*count].value,"while")==0){
-        (*count)++;
-    }
-    char *startLabel=newLabel("WHILE_EXP");
-    char *endLabel=newLabel("WHILE_END");
-
-    writeLabel(writer,startLabel);
-
-    // 条件をtrueに固定する
-    writePush(writer,"constant",0); // falseにするとループしない
-    writeArithmetic(writer,"not"); // trueに変換
-
-    writeIf(writer, endLabel);
-
-    // 本体スキップ
-    while(strcmp(tokens[*count].value,"{")!=0){
-        (*count)++;
-    }
-    (*count)++;
-    while(strcmp(tokens[*count].value,"}")!=0){
-        (*count)++;
-    }
-    writeGoto(writer,startLabel);
-    writeLabel(writer,endLabel);
-    (*count)++;
-    free(startLabel);
-    free(endLabel);
-}
-
-// void compileIf(VMWriter *writer,Token tokens[],int *count){
-//     MakeIndents(output,indents);
-//     fprintf(output,"<ifStatement>\r\n");
-//     (*indents)++;
-//     writeToken(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     compileExpression(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     compileStatements(output,tokens,count,indents);
-//     writeToken(output,tokens,count,indents);
-//     if(strcmp(tokens[*count].value,"else")==0){
-//         writeToken(output,tokens,count,indents);
-//         writeToken(output,tokens,count,indents);
-//         compileStatements(output,tokens,count,indents);
-//         writeToken(output,tokens,count,indents);
-//     }
-//     (*indents)--;
-//     MakeIndents(output,indents);
-//     fprintf(output,"</ifStatement>\r\n");
-// }
-
-void compileIf(VMWriter *writer,Token tokens[],int *count){
-    if(strcmp(tokens[*count].value,"if")==0){
-        (*count)++;
-    }
     char *trueLabel=newLabel("IF_TRUE");
     char *falseLabel=newLabel("IF_FALSE");
     char *endLabel=newLabel("IF_END");
@@ -467,18 +359,67 @@ void compileIf(VMWriter *writer,Token tokens[],int *count){
     free(endLabel);
 }
 
+void compileWhile(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    (*count)++; //skip "while"
+    char *startLabel=newLabel("WHILE_EXP");
+    char *endLabel=newLabel("WHILE_END");
+
+    writeLabel(writer,startLabel);
+
+    // 条件をtrueに固定する
+    writePush(writer,"constant",0); // falseにするとループしない
+    writeArithmetic(writer,"not"); // trueに変換
+
+    writeIf(writer, endLabel);
+
+    // 本体スキップ
+    while(strcmp(tokens[*count].value,"{")!=0){
+        (*count)++;
+    }
+    (*count)++;
+    while(strcmp(tokens[*count].value,"}")!=0){
+        (*count)++;
+    }
+    writeGoto(writer,startLabel);
+    writeLabel(writer,endLabel);
+    (*count)++;
+    free(startLabel);
+    free(endLabel);
+}
+
+void compileDo(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    (*count)++; //skip "do"
+
+    compileSubroutineCall(writer,table,tokens,count);
+    writePop(writer,"temp",0);
+
+    (*count)++; //skip  ";"
+}
+
+void compileReturn(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    (*count)++; //skip "return"
+
+    if(strcmp(tokens[*count].value,";")!=0){
+        compileExpression(writer,tokens,count);
+    }else{
+        writePush(writer,"constant",0); // void return
+    }
+    writeReturn(writer);
+    (*count)++; //skip ";"
+}
+
 int compileStatements(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     while(count){
         if(strcmp(tokens[*count].value,"let")==0){
             compileLet(writer,table,tokens,count);
         }else if(strcmp(tokens[*count].value,"if")==0){
-            compileIf(writer,tokens,count);
+            compileIf(writer,table,tokens,count);
         }else if(strcmp(tokens[*count].value,"while")==0){
-            compileWhile(writer,tokens,count);
+            compileWhile(writer,table,tokens,count);
         }else if(strcmp(tokens[*count].value,"do")==0){
-            compileDo(writer,tokens,count);
+            compileDo(writer,table,tokens,count);
         }else if(strcmp(tokens[*count].value,"return")==0){
-            compileReturn(writer,tokens,count);
+            compileReturn(writer,table,tokens,count);
         }else{
             fprintf(stderr,"Error: 'let'|'if'|'while'|'do'|'return' expected\n");
             return 1;
@@ -540,7 +481,7 @@ int compileParameterList(SymbolTable *table,Token tokens[],int *count){
     return 0;
 }
 
-int compileSubroutineDec(VMWriter *writer,SymbolTable *table,Token tokens[],int *count,char *className){
+int compileSubroutineDec(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     startSubroutine(table);
     char name[N],type[N],kind[N];
     strcpy(kind,tokens[*count].value);
@@ -599,8 +540,6 @@ int compileClass(VMWriter *writer,Token tokens[],int *count){
     if(strcmp(tokens[*count].value,"class")==0){
         (*count)++;
     }
-    char className[64];
-    char *p=className;
     strcpy(className,tokens[*count].value);
     (*count)++;
 
@@ -614,7 +553,7 @@ int compileClass(VMWriter *writer,Token tokens[],int *count){
     }
 
     while(strcmp(tokens[*count].value,"function")==0||strcmp(tokens[*count].value,"constructor")==0||strcmp(tokens[*count].value,"method")==0){
-        compileSubroutineDec(writer,table,tokens,count,p);
+        compileSubroutineDec(writer,table,tokens,count);
     }
 
     if(strcmp(tokens[*count].value,"}")!=0){
