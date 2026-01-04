@@ -5,8 +5,8 @@
 #define N 128
 #define HASH_SIZE 101
 
-char className[];
-char *varType={"int","char","boolean",className};
+// char className[];
+// char *varType={"int","char","boolean",className};
 
 typedef struct{
     char type[N];

@@ -566,7 +566,7 @@ int compileSubroutineDec(VMWriter *writer,SymbolTable *table,Token tokens[],int 
     strcpy(name,tokens[*count].value);
     (*count)++;
     if(strcmp(kind,"method")==0){
-        define(table,"this",*className,"argument"); 
+        define(table,"this",className,"argument"); 
     }
 
     if(strcmp(tokens[*count].value,"(")==0){
@@ -616,6 +616,7 @@ int compileClass(VMWriter *writer,Token tokens[],int *count){
         (*count)++;
     }
     char className[64];
+    char *p=className;
     strcpy(className,tokens[*count].value);
     (*count)++;
 
@@ -629,7 +630,7 @@ int compileClass(VMWriter *writer,Token tokens[],int *count){
     }
 
     while(strcmp(tokens[*count].value,"function")==0||strcmp(tokens[*count].value,"constructor")==0||strcmp(tokens[*count].value,"method")==0){
-        compileSubroutineDec(writer,table,tokens,count,&className);
+        compileSubroutineDec(writer,table,tokens,count,p);
     }
 
     if(strcmp(tokens[*count].value,"}")!=0){
