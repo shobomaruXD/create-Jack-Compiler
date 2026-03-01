@@ -158,7 +158,13 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
         writeCall(writer,name,nArgs);
         return;
     }else{ //varNameのみ
-        writePush(writer,"local",0); // シンボルテーブル実装時に拡張
+        Symbol *s=search(table,val);
+        if(s==NULL){
+            fprintf(stderr,"Error: Variable '%s' is not defined\n",val);
+            return;
+        }
+        const char *segment=mapKindToSegment(s->kind);
+        writePush(writer,segment,s->index);
         return;
     }
 }
