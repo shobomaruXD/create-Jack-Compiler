@@ -10,13 +10,21 @@
 
 static int labelCount=0;
 char *stop=")];=<>";
-char *className;
+char className[64];
 
 const char* mapKindToSegment(const char* kind){
     if(strcmp(kind,"var")==0) return "local";
     if(strcmp(kind,"argument")==0) return "argument";
     if(strcmp(kind,"static")==0) return "static";
     if(strcmp(kind,"field")==0) return "this";
+    return "unknown";
+}
+
+const char* mapOpToCommand(const char* Op){
+    if(strcmp(Op,"+")==0) return "add";
+    if(strcmp(Op,"-")==0) return "sub";
+    if(strcmp(Op,"*")==0) return "Math.multiply";
+    if(strcmp(Op,"/")==0) return "Math.divine";
     return "unknown";
 }
 
@@ -45,12 +53,12 @@ int checkMulDiv(Token tokens[],int *count){
     return 0;
 }
 
-void compileTerm(VMWriter *writer,Token tokens[],int *count){
+void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
     char *val=tokens[*count].value;
     char *typ=tokens[*count].type;
 
     if(strcmp(typ,"integerConstant")==0){ //数値定数
-        printf("int\n");
+        printf("int item\n");
         int n=atoi(val);
         writePush(writer,"constant",n);
         (*count)++;
@@ -90,9 +98,12 @@ void compileTerm(VMWriter *writer,Token tokens[],int *count){
     if(strcmp(val,"(")==0){ //( "Expression" )
         printf("(x)\n");
         (*count)++; // skip '('
-        compileExpression(writer,tokens,count);
+        compileExpression(writer,table,tokens,count);
         if(strcmp(tokens[*count].value,")")==0){
             (*count)++;
+        }else{
+            fprintf(stderr,"expected ')' here");
+            return;
         }
         return;
     }
@@ -100,7 +111,7 @@ void compileTerm(VMWriter *writer,Token tokens[],int *count){
     if(strcmp(val,"-")==0 || strcmp(val,"~")==0){ //unaryop
         char op=val[0];
         (*count)++;
-        compileTerm(writer,tokens,count);
+        compileTerm(writer,table,tokens,count);
         if(op=='-'){
             writeArithmetic(writer,"neg");
         }else if(op=='~'){
@@ -115,7 +126,7 @@ void compileTerm(VMWriter *writer,Token tokens[],int *count){
     (*count)++; // skip "varName|subroutineName"
     if(strcmp(val,"[")== 0){ //varName["Expression"]
         (*count)++; // skip '['
-        compileExpression(writer,tokens,count);
+        compileExpression(writer,table,tokens,count);
         (*count)++; // skip "]"
         writePush(writer,"local",0); // 仮実装
         writeArithmetic(writer,"add");
@@ -133,11 +144,11 @@ void compileTerm(VMWriter *writer,Token tokens[],int *count){
 
         int nArgs=0; // how many expressions
         if(strcmp(val,")")!=0){ // ExpressionList
-            compileExpression(writer,tokens,count);
+            compileExpression(writer,table,tokens,count);
             nArgs++;
             while(strcmp(val,",")==0){
                 (*count)++; // skip ","
-                compileExpression(writer,tokens,count);
+                compileExpression(writer,table,tokens,count);
                 nArgs++;
             }
         }
@@ -152,78 +163,90 @@ void compileTerm(VMWriter *writer,Token tokens[],int *count){
     }
 }
 
-void compileOthers(VMWriter *writer,Token tokens[],int *count){
-    char *op=tokens[*count].value;
-    if(strcmp(op,"&")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeArithmetic(writer,"and");
-    }else if(strcmp(op,"|")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeArithmetic(writer,"or");
-    }else if(strcmp(op,"<")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeArithmetic(writer,"lt");
-    }else if(strcmp(op,">")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeArithmetic(writer,"gt");
-    }else if(strcmp(op,"=")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeArithmetic(writer,"eq");
-    }
+// void compileOthers(VMWriter *writer,Token tokens[],int *count){
+//     char *op=tokens[*count].value;
+//     if(strcmp(op,"&")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeArithmetic(writer,"and");
+//     }else if(strcmp(op,"|")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeArithmetic(writer,"or");
+//     }else if(strcmp(op,"<")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeArithmetic(writer,"lt");
+//     }else if(strcmp(op,">")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeArithmetic(writer,"gt");
+//     }else if(strcmp(op,"=")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeArithmetic(writer,"eq");
+//     }
     // else{
     //     compileTerm(writer,tokens,count);
     // }
-}
+// }
 
-void compileMulDiv(VMWriter *writer,Token tokens[],int *count){
-    while(1){
-        compileOthers(writer,tokens,count);
-        if(strcmp(tokens[*count].value,"*")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeCall(writer,"Math.multiply",2);
-        }else if(strcmp(tokens[*count].value,"/")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeCall(writer,"Math.divide",2);
-        }else{
-            break;
+// void compileMulDiv(VMWriter *writer,Token tokens[],int *count){
+//     while(1){
+//         compileOthers(writer,tokens,count);
+//         if(strcmp(tokens[*count].value,"*")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeCall(writer,"Math.multiply",2);
+//         }else if(strcmp(tokens[*count].value,"/")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeCall(writer,"Math.divide",2);
+//         }else{
+//             break;
+//         }
+//     }
+// }
+
+// void compileAddSub(VMWriter *writer,Token tokens[],int *count){
+//     while(1){
+//         compileMulDiv(writer,tokens,count);
+//         if(strcmp(tokens[*count].value,"+")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeArithmetic(writer,"add");
+//         }else if(strcmp(tokens[*count].value,"-")==0){
+//             (*count)++;
+//             compileTerm(writer,tokens,count);
+//             writeArithmetic(writer,"sub");
+//         }else{
+//             break;
+//         }
+//     }
+// }
+
+void compileExpression(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+    char *Ops="+-*/&|<>=";
+    compileTerm(writer,table,tokens,count);
+
+    while(strstr(Ops,tokens[*count].value)){
+        char *op=tokens[*count].value;
+        (*count)++; //skip op
+        compileTerm(writer,table,tokens,count);
+        if(strcmp(op,"+")==0||strcmp(op,"-")==0){
+            writeArithmetic(writer,mapOpToCommand(op));
+        }else if(strcmp(op,"*")==0||strcmp(op,"/")==0){
+            writeCall(writer,mapOpToCommand(op),2);
         }
+        
     }
-}
-
-void compileAddSub(VMWriter *writer,Token tokens[],int *count){
-    while(1){
-        compileMulDiv(writer,tokens,count);
-        if(strcmp(tokens[*count].value,"+")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeArithmetic(writer,"add");
-        }else if(strcmp(tokens[*count].value,"-")==0){
-            (*count)++;
-            compileTerm(writer,tokens,count);
-            writeArithmetic(writer,"sub");
-        }else{
-            break;
-        }
-    }
-}
-
-void compileExpression(VMWriter *writer,Token tokens[],int *count){
-    compileTerm(writer,tokens,count);
-    compileAddSub(writer,tokens,count);
 }
 
 int compileExpressionList(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     int nArgs=0;
 
     while(1){
-        compileExpression(writer,tokens,count);
+        compileExpression(writer,table,tokens,count);
         nArgs++;
 
         if(strcmp(tokens[*count].value,",")==0){
@@ -247,16 +270,16 @@ void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],in
         compileExpressionList(writer,table,tokens,count);
         (*count)++; //skip ")"
 
-        char *functionName=strcat(val,".");
-        functionName=strcat(functionName,subroutineName);
+        char functionName[N];
+        sprintf(functionName,"%s.%s",val,subroutineName);
         writeCall(writer,functionName,1);
     }else if(strcmp(tokens[(*count)++].value,".")==0){
         Symbol *s=search(table,val);
-        if (s==NULL){
+        if(s==NULL){
             fprintf(stderr,"Error: Variable '%s' is not defined\n",val);
             return;
         }
-        char *segment=mapKindToSegment(s->kind);
+        const char *segment=mapKindToSegment(s->kind);
         writePush(writer,segment,s->index);
         (*count)++;
 
@@ -267,8 +290,8 @@ void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],in
         int nArgs=compileExpressionList(writer,table,tokens,count);
         (*count)++; //skip ")"
 
-        char *functionName=strcat(val,".");
-        functionName=strcat(functionName,subroutineName);
+        char functionName[N];
+        sprintf(functionName,"%s.%s",val,subroutineName);
         writeCall(writer,functionName,nArgs+1);
     }else if(strcmp(tokens[(*count)++].value,"(")==0){
         writePush(writer,"pointer",0);
@@ -278,8 +301,8 @@ void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],in
         int nArgs=compileExpressionList(writer,table,tokens,count);
         (*count)++; //skip ")"
 
-        char *functionName=strcat(className,".");
-        functionName=strcat(functionName,val);
+        char functionName[N];
+        sprintf(functionName,"%s.%s",val,className);
         writeCall(writer,functionName,nArgs+1);
     }else{
         fprintf(stderr,"Error: there are no subroutine calls");
@@ -290,34 +313,44 @@ void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],in
 void compileLet(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     (*count)++; // skip "let"
 
-    char *varName=tokens[*count].value;
+    char *varName=tokens[*count].value; //get varName Ex:x
     (*count)++;
 
     Symbol *s=search(table,varName);
-    if (s==NULL){
+    if(s==NULL){
         fprintf(stderr,"Error: Variable '%s' is not defined\n",varName);
         return;
     }
     while(strcmp(tokens[*count].value,"[")==0){
         (*count)++; //skip "["
-        compileExpression(writer,tokens,count);
+        compileExpression(writer,table,tokens,count);
         (*count)++; //skip "]"
     }
 
     (*count)++; //skip "="
-    compileExpression(writer,tokens,count);
+    compileExpression(writer,table,tokens,count);
 
-    char *segment=mapKindToSegment(s->kind);
+    const char *segment=mapKindToSegment(s->kind);
     writePop(writer,segment,s->index);
     (*count)++; //skip ";"
 }
 
 void compileIf(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     (*count)++; //skip "if"
+    (*count)++; //skip "("
+    compileExpression(writer,table,tokens,count);
+    (*count)++; //skip ")"
 
-    char *trueLabel=newLabel("IF_TRUE");
     char *falseLabel=newLabel("IF_FALSE");
     char *endLabel=newLabel("IF_END");
+
+    (*count)++; //skip "{"
+    compileStatements(writer,table,tokens,count);
+    (*count)++; //skip "}"
+    
+
+    char *trueLabel=newLabel("IF_TRUE");
+
 
     // 条件式:true固定
     writePush(writer,"constant",0);
@@ -400,7 +433,7 @@ void compileReturn(VMWriter *writer,SymbolTable *table,Token tokens[],int *count
     (*count)++; //skip "return"
 
     if(strcmp(tokens[*count].value,";")!=0){
-        compileExpression(writer,tokens,count);
+        compileExpression(writer,table,tokens,count);
     }else{
         writePush(writer,"constant",0); // void return
     }
@@ -421,36 +454,56 @@ int compileStatements(VMWriter *writer,SymbolTable *table,Token tokens[],int *co
         }else if(strcmp(tokens[*count].value,"return")==0){
             compileReturn(writer,table,tokens,count);
         }else{
-            fprintf(stderr,"Error: 'let'|'if'|'while'|'do'|'return' expected\n");
-            return 1;
+            break;
         }
     }
+    return 0;
 }
 
 void compileVarDec(SymbolTable *table,Token tokens[],int *count){
     char name[N],type[N];
-    strcpy(type,tokens[*count].value);
+    (*count)++; //skip var
+
+    strcpy(type,tokens[*count].value);  //get type  Ex:int
     (*count)++;
     while(1){
-        strcpy(name,tokens[*count].value);
+        strcpy(name,tokens[*count].value);  //get varName
         (*count)++;
         define(table,name,type,"var");  //kind="argument"で固定
 
         if(strcmp(tokens[*count].value,",")==0){
-            (*count)++;
-        }else{
-            (*count)--;
+            (*count)++; //skip ","
+        }else if(strcmp(tokens[*count].value,";")==0){
+            (*count)++; //skip ";"
             break;
+        }else{
+            fprintf(stderr,"expected ';' here");
+            return;
         }
     }
 }
 
-void compileSubroutineBody(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
+void compileSubroutineBody(VMWriter *writer,SymbolTable *table,Token tokens[],int *count,char* subroutineName,char* subroutineKind){
     (*count)++; // skip '{'
 
     while(strcmp(tokens[*count].value,"var")==0){
-        (*count)++;
         compileVarDec(table,tokens,count);
+    }
+
+    char funcName[128];
+    sprintf(funcName,"%s.%s",className,subroutineName); //get full function name
+    
+    int nLocals=table->varCount;    //get varCount
+
+    writeFunction(writer,funcName,nLocals);
+
+    if(strcmp(subroutineKind,"method")==0){
+        writePush(writer,"argument",0);
+        writePop(writer,"pointer",0);
+    }else if(strcmp(subroutineKind,"constructor")==0){
+        writePush(writer,"constant",table->fieldCount);
+        writeCall(writer,"Memory.alloc",1);
+        writePop(writer,"pointer",0);
     }
 
     compileStatements(writer,table,tokens,count);
@@ -460,7 +513,7 @@ void compileSubroutineBody(VMWriter *writer,SymbolTable *table,Token tokens[],in
 
 int compileParameterList(SymbolTable *table,Token tokens[],int *count){
     if(strcmp(tokens[*count].value,")")==0){
-        (*count)++;
+        (*count)++; //skip ")"
         return 0;
     }
     
@@ -475,6 +528,7 @@ int compileParameterList(SymbolTable *table,Token tokens[],int *count){
         if(strcmp(tokens[*count].value,",")==0){
             (*count)++;
         }else{
+            (*count)++;
             break;
         }
     }
@@ -484,30 +538,20 @@ int compileParameterList(SymbolTable *table,Token tokens[],int *count){
 int compileSubroutineDec(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     startSubroutine(table);
     char name[N],type[N],kind[N];
-    strcpy(kind,tokens[*count].value);
+    strcpy(kind,tokens[*count].value);  //Ex:function
     (*count)++;
     strcpy(type,tokens[*count].value);  //void?
     (*count)++;
-    strcpy(name,tokens[*count].value);
+    strcpy(name,tokens[*count].value);  //Ex:main
     (*count)++;
     if(strcmp(kind,"method")==0){
         define(table,"this",className,"argument"); 
     }
 
-    if(strcmp(tokens[*count].value,"(")==0){
-        (*count)++;
-        compileParameterList(table,tokens,count);
-    }else{
-        fprintf(stderr,"'('expected\n");
-        return 1;
-    }
-    if(strcmp(tokens[*count].value,")")==0){
-        (*count)++;
-        compileSubroutineBody(writer,table,tokens,count);
-    }else{
-        fprintf(stderr,"')'expected\n");
-        return 1;
-    }
+    (*count)++; //skip "("
+    compileParameterList(table,tokens,count);
+
+    compileSubroutineBody(writer,table,tokens,count,name,kind);
     return 0;
 }
 
@@ -537,16 +581,11 @@ int compileClassVarDec(SymbolTable *table,Token tokens[],int *count){
 
 int compileClass(VMWriter *writer,Token tokens[],int *count){
     SymbolTable *table=createSymbolTable();
-    if(strcmp(tokens[*count].value,"class")==0){
-        (*count)++;
-    }
-    strcpy(className,tokens[*count].value);
-    (*count)++;
+    (*count)++; //skip "class"
 
-    while(strcmp(tokens[*count].value,"{")!=0){
-        (*count)++;
-    }
+    strcpy(className,tokens[*count].value); //get className Ex:Main
     (*count)++;
+    (*count)++; //skip "{"
 
     while(strcmp(tokens[*count].value,"static")==0||strcmp(tokens[*count].value,"field")==0){
         compileClassVarDec(table,tokens,count);
@@ -557,7 +596,7 @@ int compileClass(VMWriter *writer,Token tokens[],int *count){
     }
 
     if(strcmp(tokens[*count].value,"}")!=0){
-        fprintf(stderr,"'}'expected\n");
+        fprintf(stderr,"'}'expected @Class\n");
         return 1;
     }
     (*count)++;
