@@ -6,7 +6,8 @@
 #include "CodeGenerator.h"
 
 const char* mapKindToSegment(const char* kind);
-
+const char* mapOpToCommand(const char* Op);
+static char *newLabel(const char *base);
 void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count);
 void compileExpression(VMWriter *writer,SymbolTable *table,Token tokens[],int *count);
 int compileClass(VMWriter *writer,Token tokens[],int *count);

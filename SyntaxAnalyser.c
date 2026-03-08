@@ -25,6 +25,11 @@ const char* mapOpToCommand(const char* Op){
     if(strcmp(Op,"-")==0) return "sub";
     if(strcmp(Op,"*")==0) return "Math.multiply";
     if(strcmp(Op,"/")==0) return "Math.divine";
+    if(strcmp(Op,"&")==0) return "and";
+    if(strcmp(Op,"|")==0) return "or";
+    if(strcmp(Op,"<")==0) return "lt";
+    if(strcmp(Op,">")==0) return "gt";
+    if(strcmp(Op,"=")==0) return "eq";
     return "unknown";
 }
 
@@ -58,7 +63,7 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
     char *typ=tokens[*count].type;
 
     if(strcmp(typ,"integerConstant")==0){ //数値定数
-        printf("int item\n");
+        // printf("int item\n");
         int n=atoi(val);
         writePush(writer,"constant",n);
         (*count)++;
@@ -79,13 +84,13 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
     }
 
     if(strcmp(val,"true")==0){ //キーワード定数
-        printf("a\n");
+        // printf("a\n");
         writePush(writer,"constant",0);
         writeArithmetic(writer,"not");
         (*count)++;
         return;
     }else if(strcmp(val,"false")==0 || strcmp(val,"null")==0){
-        printf("b\n");
+        // printf("b\n");
         writePush(writer,"constant",0);
         (*count)++;
         return;
@@ -96,7 +101,7 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
     }
 
     if(strcmp(val,"(")==0){ //( "Expression" )
-        printf("(x)\n");
+        // printf("(x)\n");
         (*count)++; // skip '('
         compileExpression(writer,table,tokens,count);
         if(strcmp(tokens[*count].value,")")==0){
@@ -243,6 +248,8 @@ void compileExpression(VMWriter *writer,SymbolTable *table,Token tokens[],int *c
             writeArithmetic(writer,mapOpToCommand(op));
         }else if(strcmp(op,"*")==0||strcmp(op,"/")==0){
             writeCall(writer,mapOpToCommand(op),2);
+        }else{
+            writeArithmetic(writer,mapOpToCommand(op));
         }
         
     }
@@ -347,50 +354,27 @@ void compileIf(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     compileExpression(writer,table,tokens,count);
     (*count)++; //skip ")"
 
-    char *falseLabel=newLabel("IF_FALSE");
-    char *endLabel=newLabel("IF_END");
+    char *trueLabel=newLabel("true");
+    char *falseLabel=newLabel("false");
+    char *endLabel=newLabel("end");
+
+    writeArithmetic(writer,"not");  //反転
+    writeIf(writer,falseLabel); //反転した条件に当てはまればfalseに飛ばす
 
     (*count)++; //skip "{"
-    compileStatements(writer,table,tokens,count);
+    compileStatements(writer,table,tokens,count);   //true実行
     (*count)++; //skip "}"
-    
 
-    char *trueLabel=newLabel("IF_TRUE");
+    writeGoto(writer,endLabel);
 
-
-    // 条件式:true固定
-    writePush(writer,"constant",0);
-    writeArithmetic(writer,"not");
-
-    writeIf(writer,trueLabel);
-    writeGoto(writer,falseLabel);
-
-    writeLabel(writer,trueLabel);
-
-    // ifブロックのスキップ
-    while(strcmp(tokens[*count].value,"{")!=0){
-        (*count)++;
-    }
-    (*count)++;
-    while(strcmp(tokens[*count].value,"}")!=0){
-        (*count)++;
-    }
-    (*count)++;
-    writeGoto(writer, endLabel);
-    writeLabel(writer, falseLabel);
-
-    // elseブロックを検出
     if(strcmp(tokens[*count].value,"else")==0){
-        (*count)++;
-        while(strcmp(tokens[*count].value,"{")!=0){
-            (*count)++;
-        }
-        (*count)++;
-        while(strcmp(tokens[*count].value,"}")!=0){
-            (*count)++;
-        }
-        (*count)++;
+        writeLabel(writer,falseLabel);
+        (*count)++; //skip "else"
+        (*count)++; //skip "{"
+        compileStatements(writer,table,tokens,count);   //else実行
+        (*count)++; //skip "}"
     }
+
     writeLabel(writer, endLabel);
 
     free(trueLabel);
