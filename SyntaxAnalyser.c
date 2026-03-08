@@ -174,68 +174,6 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
     }
 }
 
-// void compileOthers(VMWriter *writer,Token tokens[],int *count){
-//     char *op=tokens[*count].value;
-//     if(strcmp(op,"&")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeArithmetic(writer,"and");
-//     }else if(strcmp(op,"|")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeArithmetic(writer,"or");
-//     }else if(strcmp(op,"<")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeArithmetic(writer,"lt");
-//     }else if(strcmp(op,">")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeArithmetic(writer,"gt");
-//     }else if(strcmp(op,"=")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeArithmetic(writer,"eq");
-//     }
-    // else{
-    //     compileTerm(writer,tokens,count);
-    // }
-// }
-
-// void compileMulDiv(VMWriter *writer,Token tokens[],int *count){
-//     while(1){
-//         compileOthers(writer,tokens,count);
-//         if(strcmp(tokens[*count].value,"*")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeCall(writer,"Math.multiply",2);
-//         }else if(strcmp(tokens[*count].value,"/")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeCall(writer,"Math.divide",2);
-//         }else{
-//             break;
-//         }
-//     }
-// }
-
-// void compileAddSub(VMWriter *writer,Token tokens[],int *count){
-//     while(1){
-//         compileMulDiv(writer,tokens,count);
-//         if(strcmp(tokens[*count].value,"+")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeArithmetic(writer,"add");
-//         }else if(strcmp(tokens[*count].value,"-")==0){
-//             (*count)++;
-//             compileTerm(writer,tokens,count);
-//             writeArithmetic(writer,"sub");
-//         }else{
-//             break;
-//         }
-//     }
-// }
-
 void compileExpression(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     char *Ops="+-*/&|<>=";
     compileTerm(writer,table,tokens,count);
@@ -384,28 +322,24 @@ void compileIf(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
 
 void compileWhile(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     (*count)++; //skip "while"
-    char *startLabel=newLabel("WHILE_EXP");
-    char *endLabel=newLabel("WHILE_END");
+    char *startLabel=newLabel("WhileStart");
+    char *endLabel=newLabel("WhileEnd");
 
     writeLabel(writer,startLabel);
+    
+    (*count)++; //skip "("
+    compileExpression(writer,table,tokens,count);
+    writeArithmetic(writer,"not");  //反転
+    writeIf(writer,endLabel); //反転した条件に当てはまればEndに飛ばす
+    (*count)++; //skip ")"
+    (*count)++; //skip "{"
+    compileStatements(writer,table,tokens,count);
+    (*count)++; //skip "}"
 
-    // 条件をtrueに固定する
-    writePush(writer,"constant",0); // falseにするとループしない
-    writeArithmetic(writer,"not"); // trueに変換
-
-    writeIf(writer, endLabel);
-
-    // 本体スキップ
-    while(strcmp(tokens[*count].value,"{")!=0){
-        (*count)++;
-    }
-    (*count)++;
-    while(strcmp(tokens[*count].value,"}")!=0){
-        (*count)++;
-    }
     writeGoto(writer,startLabel);
+
     writeLabel(writer,endLabel);
-    (*count)++;
+    
     free(startLabel);
     free(endLabel);
 }
