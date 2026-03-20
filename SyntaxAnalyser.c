@@ -24,7 +24,7 @@ const char* mapOpToCommand(const char* Op){
     if(strcmp(Op,"+")==0) return "add";
     if(strcmp(Op,"-")==0) return "sub";
     if(strcmp(Op,"*")==0) return "Math.multiply";
-    if(strcmp(Op,"/")==0) return "Math.divine";
+    if(strcmp(Op,"/")==0) return "Math.divide";
     if(strcmp(Op,"&")==0) return "and";
     if(strcmp(Op,"|")==0) return "or";
     if(strcmp(Op,"<")==0) return "lt";
@@ -126,10 +126,9 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
     }
 
     // varName or subroutineCall
-    char name[128];
-    strcpy(name,val);
-    (*count)++; // skip "varName|subroutineName"
-    if(strcmp(val,"[")== 0){ //varName["Expression"]
+    int Next=(*count)+1;
+    if(strcmp(tokens[Next].value,"[")== 0){ //varName["Expression"]
+        (*count)++; // skip 'varName'
         (*count)++; // skip '['
         compileExpression(writer,table,tokens,count);
         (*count)++; // skip "]"
@@ -138,41 +137,69 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
         writePop(writer,"pointer", 1);
         writePush(writer,"that",0);
         return;
-    }else if(strcmp(val,"(")==0 || strcmp(val,".")==0){ //subroutineCall
-        if(strcmp(val,".")==0){
-            strcat(name,".");
-            (*count)++;
-            strcat(name,val);
-            (*count)++;
-        }
-        (*count)++; // skip "("
+    }else{
+        char *val=tokens[*count].value;
+        int NextPointer=(*count)+1;
+        // printf("%s",val);
+        // printf("%s",tokens[NextPointer].value);
+        if(strcmp(tokens[NextPointer].value,".")==0){
+            Symbol *s=search(table,val);
 
-        int nArgs=0; // how many expressions
-        if(strcmp(val,")")!=0){ // ExpressionList
-            compileExpression(writer,table,tokens,count);
-            nArgs++;
-            while(strcmp(val,",")==0){
-                (*count)++; // skip ","
-                compileExpression(writer,table,tokens,count);
-                nArgs++;
+            if(s==NULL){    //class
+                (*count)++;
+                (*count)++; //skip  "."
+                char *subroutineName=tokens[*count].value;
+                printf("subtoutineName=%s\n",subroutineName);
+                (*count)++;
+                (*count)++; //skip "("
+                int nArgs=compileExpressionList(writer,table,tokens,count);
+                (*count)++; //skip ")"
+
+                char functionName[N];
+                sprintf(functionName,"%s.%s",val,subroutineName);
+                writeCall(writer,functionName,nArgs);
+                return;
             }
-        }
-        if(strcmp(val,")")==0){
+
+            const char *segment=mapKindToSegment(s->kind);
+            writePush(writer,segment,s->index);
             (*count)++;
+
+            (*count)++; //skip  "."
+            char *subroutineName=tokens[*count].value;
+            printf("subtoutineName=%s\n",subroutineName);
+            (*count)++;
+            (*count)++; //skip "("
+            int nArgs=compileExpressionList(writer,table,tokens,count);
+            (*count)++; //skip ")"
+
+            char functionName[N];
+            sprintf(functionName,"%s.%s",s->type,subroutineName);
+            writeCall(writer,functionName,nArgs+1);
+        }else if(strcmp(tokens[NextPointer].value,"(")==0){
+            writePush(writer,"pointer",0);
+            (*count)++;
+
+            (*count)++; //skip "("
+            int nArgs=compileExpressionList(writer,table,tokens,count);
+            (*count)++; //skip ")"
+
+            char functionName[N];
+            sprintf(functionName,"%s.%s",className,val);
+            writeCall(writer,functionName,nArgs+1);
+        }else{  // varName
+            (*count)++; // skip
+            Symbol *s=search(table,val);
+            if(s==NULL){
+                fprintf(stderr,"Error: Variable '%s' is not defined\n",val);
+                return;
+            }
+            const char *segment=mapKindToSegment(s->kind);
+            writePush(writer,segment,s->index);
         }
-        writeCall(writer,name,nArgs);
-        return;
-    }else{ //varNameのみ
-        Symbol *s=search(table,val);
-        if(s==NULL){
-            fprintf(stderr,"Error: Variable '%s' is not defined\n",val);
-            return;
-        }
-        const char *segment=mapKindToSegment(s->kind);
-        writePush(writer,segment,s->index);
-        return;
     }
 }
+
 
 void compileExpression(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     char *Ops="+-*/&|<>=";
@@ -196,6 +223,10 @@ void compileExpression(VMWriter *writer,SymbolTable *table,Token tokens[],int *c
 int compileExpressionList(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     int nArgs=0;
 
+    if(strcmp(tokens[*count].value,")")==0){
+        return 0; 
+    }
+
     while(1){
         compileExpression(writer,table,tokens,count);
         nArgs++;
@@ -212,39 +243,44 @@ int compileExpressionList(VMWriter *writer,SymbolTable *table,Token tokens[],int
 
 void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     char *val=tokens[*count].value;
-    if(strcmp(val,className)==0){
-        (*count)++;
-        (*count)++; //skip  "."
-        char *subroutineName=tokens[*count].value;
-        (*count)++;
-        (*count)++; //skip "("
-        compileExpressionList(writer,table,tokens,count);
-        (*count)++; //skip ")"
-
-        char functionName[N];
-        sprintf(functionName,"%s.%s",val,subroutineName);
-        writeCall(writer,functionName,1);
-    }else if(strcmp(tokens[(*count)++].value,".")==0){
+    int NextPointer=(*count)+1;
+    // printf("%s",val);
+    // printf("%s",tokens[NextPointer].value);
+    if(strcmp(tokens[NextPointer].value,".")==0){
         Symbol *s=search(table,val);
-        if(s==NULL){
-            fprintf(stderr,"Error: Variable '%s' is not defined\n",val);
+
+        if(s==NULL){    //class
+            (*count)++;
+            (*count)++; //skip  "."
+            char *subroutineName=tokens[*count].value;
+            printf("subtoutineName=%s\n",subroutineName);
+            (*count)++;
+            (*count)++; //skip "("
+            int nArgs=compileExpressionList(writer,table,tokens,count);
+            (*count)++; //skip ")"
+
+            char functionName[N];
+            sprintf(functionName,"%s.%s",val,subroutineName);
+            writeCall(writer,functionName,nArgs);
             return;
         }
+
         const char *segment=mapKindToSegment(s->kind);
         writePush(writer,segment,s->index);
         (*count)++;
 
         (*count)++; //skip  "."
         char *subroutineName=tokens[*count].value;
+        printf("subtoutineName=%s\n",subroutineName);
         (*count)++;
         (*count)++; //skip "("
         int nArgs=compileExpressionList(writer,table,tokens,count);
         (*count)++; //skip ")"
 
         char functionName[N];
-        sprintf(functionName,"%s.%s",val,subroutineName);
+        sprintf(functionName,"%s.%s",s->type,subroutineName);
         writeCall(writer,functionName,nArgs+1);
-    }else if(strcmp(tokens[(*count)++].value,"(")==0){
+    }else if(strcmp(tokens[NextPointer].value,"(")==0){
         writePush(writer,"pointer",0);
         (*count)++;
 
@@ -253,10 +289,10 @@ void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],in
         (*count)++; //skip ")"
 
         char functionName[N];
-        sprintf(functionName,"%s.%s",val,className);
+        sprintf(functionName,"%s.%s",className,val);
         writeCall(writer,functionName,nArgs+1);
     }else{
-        fprintf(stderr,"Error: there are no subroutine calls");
+        fprintf(stderr,"Error: there are no subroutine calls\n");
         return;
     }
 }
@@ -272,17 +308,36 @@ void compileLet(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
         fprintf(stderr,"Error: Variable '%s' is not defined\n",varName);
         return;
     }
+    // printf("Let ok!\n");
+    int isArray=0;
+
     while(strcmp(tokens[*count].value,"[")==0){
+        isArray=1;
         (*count)++; //skip "["
         compileExpression(writer,table,tokens,count);
         (*count)++; //skip "]"
+
+        const char *segment=mapKindToSegment(s->kind);
+        writePush(writer, segment, s->index);
+        writeArithmetic(writer, "add");
     }
 
     (*count)++; //skip "="
     compileExpression(writer,table,tokens,count);
+    // printf("Expression ok!\n");
+    // printf("current=%s\n",tokens[*count].value);
 
-    const char *segment=mapKindToSegment(s->kind);
-    writePop(writer,segment,s->index);
+    if(isArray){
+        // [アドレス, 右辺の値] の状態から、tempを使ってTHAT[0]へ書き込む
+        writePop(writer,"temp",0);
+        writePop(writer,"pointer",1);
+        writePush(writer,"temp",0);
+        writePop(writer,"that",0);
+    }else{
+        const char *segment=mapKindToSegment(s->kind);
+        writePop(writer,segment,s->index);
+    }
+
     (*count)++; //skip ";"
 }
 
@@ -304,9 +359,9 @@ void compileIf(VMWriter *writer,SymbolTable *table,Token tokens[],int *count){
     (*count)++; //skip "}"
 
     writeGoto(writer,endLabel);
+    writeLabel(writer,falseLabel);
 
     if(strcmp(tokens[*count].value,"else")==0){
-        writeLabel(writer,falseLabel);
         (*count)++; //skip "else"
         (*count)++; //skip "{"
         compileStatements(writer,table,tokens,count);   //else実行
@@ -480,7 +535,8 @@ int compileSubroutineDec(VMWriter *writer,SymbolTable *table,Token tokens[],int 
 }
 
 int compileClassVarDec(SymbolTable *table,Token tokens[],int *count){
-    char *name,*type,*kind;
+    char name[128], type[128], kind[128]; 
+
     strcpy(kind,tokens[*count].value);
     (*count)++;
     strcpy(type,tokens[*count].value);
