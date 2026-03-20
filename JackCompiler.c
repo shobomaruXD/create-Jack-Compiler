@@ -171,7 +171,7 @@ void Tokenizer(FILE *input,Token tokens[],int *tokenCount){
 
 void Parser(char *filepath,Token tokens[],int *tokenCount,int count){
     char* target=".jack";
-    char* replacement="Out.vm";
+    char* replacement=".vm";
     char* output_filename=replace_extension(filepath,target,replacement); // 拡張子変更
     VMWriter *writer=createVMWriter(output_filename);
     

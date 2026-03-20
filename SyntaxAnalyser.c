@@ -39,15 +39,6 @@ static char *newLabel(const char *base){
     return label;
 }
 
-// int checkUnary(Token tokens[],int *count){
-//     while(strchr(tokens[*count].value,stop)!=0){
-//         if(strcmp(tokens[*count].value,"-")==0 || strcmp(tokens[*count].value,"~")==0){
-//             return 1;
-//         }
-//     }
-//     return 0;
-// }
-
 int checkMulDiv(Token tokens[],int *count){
     while(!strchr(stop,tokens[*count].value[0])){
         (*count)++;
@@ -132,7 +123,14 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
         (*count)++; // skip '['
         compileExpression(writer,table,tokens,count);
         (*count)++; // skip "]"
-        writePush(writer,"local",0); // 仮実装
+
+        Symbol *s=search(table,val);    //いつもの
+        if(s==NULL){
+            fprintf(stderr,"Error: Array '%s' not defined\n",val);
+            return;
+        }
+        writePush(writer, mapKindToSegment(s->kind), s->index);
+
         writeArithmetic(writer,"add");
         writePop(writer,"pointer", 1);
         writePush(writer,"that",0);
@@ -149,7 +147,7 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
                 (*count)++;
                 (*count)++; //skip  "."
                 char *subroutineName=tokens[*count].value;
-                printf("subtoutineName=%s\n",subroutineName);
+                // printf("subtoutineName=%s\n",subroutineName);
                 (*count)++;
                 (*count)++; //skip "("
                 int nArgs=compileExpressionList(writer,table,tokens,count);
@@ -167,7 +165,7 @@ void compileTerm(VMWriter *writer,SymbolTable* table,Token tokens[],int *count){
 
             (*count)++; //skip  "."
             char *subroutineName=tokens[*count].value;
-            printf("subtoutineName=%s\n",subroutineName);
+            // printf("subtoutineName=%s\n",subroutineName);
             (*count)++;
             (*count)++; //skip "("
             int nArgs=compileExpressionList(writer,table,tokens,count);
@@ -253,7 +251,7 @@ void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],in
             (*count)++;
             (*count)++; //skip  "."
             char *subroutineName=tokens[*count].value;
-            printf("subtoutineName=%s\n",subroutineName);
+            // printf("subtoutineName=%s\n",subroutineName);
             (*count)++;
             (*count)++; //skip "("
             int nArgs=compileExpressionList(writer,table,tokens,count);
@@ -271,7 +269,7 @@ void compileSubroutineCall(VMWriter *writer,SymbolTable *table,Token tokens[],in
 
         (*count)++; //skip  "."
         char *subroutineName=tokens[*count].value;
-        printf("subtoutineName=%s\n",subroutineName);
+        // printf("subtoutineName=%s\n",subroutineName);
         (*count)++;
         (*count)++; //skip "("
         int nArgs=compileExpressionList(writer,table,tokens,count);
